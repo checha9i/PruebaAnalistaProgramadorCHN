@@ -1,0 +1,41 @@
+services:
+  # Motor de Base de Datos (Transact-SQL)
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: chn-sqlserver-container
+    user: root
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "CHNAnalista2026!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+  # API Backend (Spring Boot)
+  backend:
+    build: ./backend
+    container_name: chn-spring-container
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://db:1433;databaseName=master;encrypt=true;trustServerCertificate=true;
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: CHNAnalista2026!
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.SQLServerDialect
+    depends_on:
+      - db
+
+  # Frontend (React)
+  frontend:
+    build: ./frontend
+    container_name: chn-react-container
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  sqlserver_data:

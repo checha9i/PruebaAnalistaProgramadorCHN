@@ -1,0 +1,46 @@
+# ==========================================
+# EXCLUSIONES PARA EL BACKEND (Java / Spring Boot)
+# ==========================================
+# Archivos compilados y empaquetados
+backend/target/
+backend/*.jar
+backend/*.war
+
+# Archivos específicos de herramientas de desarrollo (Eclipse/IntelliJ/VS Code)
+backend/.md/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/.factorypath
+backend/.idea/
+backend/*.iml
+backend/out/
+backend/.vscode/
+
+# Historial de logs y archivos temporales
+backend/*.log
+
+# ==========================================
+# EXCLUSIONES PARA EL FRONTEND (Node / React / Vite)
+# ==========================================
+# Dependencias locales (NUNCA se deben subir)
+frontend/node_modules/
+
+# Directorios de producción compilados
+frontend/dist/
+frontend/build/
+
+# Archivos de depuración y variables de entorno locales
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# ==========================================
+# EXCLUSIONES DEL SISTEMA OPERATIVO Y GENERALES
+# ==========================================
+.DS_Store
+Thumbs.db
