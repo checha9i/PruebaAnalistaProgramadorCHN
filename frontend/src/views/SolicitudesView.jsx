@@ -33,23 +33,36 @@ export default function SolicitudesView({ initialClienteId }) {
             return;
         }
         setBuscando(true);
+
+        // Mitigación: Limpiar estados previos antes de la nueva consulta
         setClienteInfo(null);
         setSolicitudes([]);
 
         chnApi.getCliente(clienteId)
             .then(cliente => {
+                if (!cliente) {
+                    setClienteInfo(null);
+                    setSolicitudes([]);
+                    mostrarAlerta("El cliente consultado no existe o fue eliminado del sistema.", "error");
+                    return;
+                }
                 setClienteInfo(cliente);
                 return chnApi.getSolicitudes(clienteId);
             })
             .then(data => {
-                setSolicitudes(data || []);
+                if (data) {
+                    setSolicitudes(Array.isArray(data) ? data : []);
+                }
             })
             .catch(err => {
-                console.error("Error en consulta:", err);
+                console.warn("Consulta mitigada: Cliente inexistente o eliminado.");
+                setClienteInfo(null);
+                setSolicitudes([]);
                 mostrarAlerta("El ID de cliente ingresado no existe en el sistema.", "error");
             })
             .finally(() => setBuscando(false));
     };
+
 
     useEffect(() => {
         if (initialClienteId) {

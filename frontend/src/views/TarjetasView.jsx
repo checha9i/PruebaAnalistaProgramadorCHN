@@ -34,19 +34,23 @@ export default function TarjetasView({ initialClienteId }) {
       return;
     }
     setBuscando(true);
+
     setClienteInfo(null);
     setTarjetas([]);
     setSelectedTarjeta(null);
     setMovimientos({ consumos: [], pagos: [] });
 
-    // 1. Consultar información del cliente primero para la tarjeta superior
     chnApi.getCliente(clienteId)
       .then(cliente => {
+        if (!cliente) {
+          mostrarAlerta("El cuentahabiente no existe o fue eliminado del sistema.", "error");
+          return null;
+        }
         setClienteInfo(cliente);
-        // 2. Si existe, consultar sus plásticos
         return chnApi.getTarjetas(clienteId);
       })
       .then(data => {
+        if (!data) return;
         const listaTarjetas = data || [];
         setTarjetas(listaTarjetas);
         if (listaTarjetas.length > 0) {
@@ -54,11 +58,14 @@ export default function TarjetasView({ initialClienteId }) {
         }
       })
       .catch(err => {
-        console.error("Error consultando tarjetas:", err);
+        console.warn("Consulta de cuenta mitigada: Cliente inexistente.");
+        setClienteInfo(null);
+        setTarjetas([]);
         mostrarAlerta("El ID de cliente ingresado no existe en el sistema.", "error");
       })
       .finally(() => setBuscando(false));
   };
+
 
   const handleSeleccionarTarjeta = (tarjeta) => {
     setSelectedTarjeta(tarjeta);

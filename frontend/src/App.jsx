@@ -46,6 +46,11 @@ export default function App() {
           {renderView()}
         </Box>
       </Container>
+      <Box component="footer" sx={{ py: 2, textAlign: 'center', mt: 'auto', backgroundColor: '#f4f6f8', borderTop: '1px solid #e0e0e0' }}>
+        <Typography variant="caption" color="textSecondary" sx={{ fontFamily: 'monospace' }}>
+          © 2026 Crédito Hipotecario Nacional - Sistema de Tarjetas v1.0.0 | Analista Programador
+        </Typography>
+      </Box>
     </ThemeProvider>
   );
 }
