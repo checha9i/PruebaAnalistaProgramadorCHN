@@ -72,9 +72,9 @@ PruebaAnalistaProgramadorCHN/
    ```bash
    cd PruebaAnalistaProgramadorCHN
    ```
-3. Construir las imágenes y levantar todo el ecosistema con un solo comando:
+3. Construir las imágenes y levantar todo el ecosistema con un solo comando en modo deamon:
    ```bash
-   docker-compose up --build
+   docker-compose up --build -d
    ```
 4. Una vez que la terminal indique que los servicios están listos, puede acceder a las siguientes URLs:
    - **Frontend (Interfaz Gráfica):** `http://localhost:5173`
