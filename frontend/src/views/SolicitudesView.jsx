@@ -18,7 +18,7 @@ export default function SolicitudesView({ initialClienteId }) {
     const cargarSolicitudes = () => {
         if (!clienteId) return;
         chnApi.getSolicitudes(clienteId)
-            .then(data => setSolicitudes(data))
+            .then(data => setSolicitudes(data || []))
             .catch(err => console.error("Error cargando solicitudes", err));
     };
 
@@ -33,7 +33,6 @@ export default function SolicitudesView({ initialClienteId }) {
             return;
         }
 
-        // Objeto solicitud adaptado al controlador backend genérico
         const nuevaSolicitud = {
             cliente: { id: parseInt(clienteId) },
             tipoTarjeta: form.tipoTarjeta,
@@ -89,7 +88,6 @@ export default function SolicitudesView({ initialClienteId }) {
                 Solicitudes de Tarjetas de Crédito
             </Typography>
 
-            {/* FILTRO DE BUSQUEDA POR CLIENTE */}
             <Card sx={{ mb: 4, p: 1, boxShadow: 2 }}>
                 <CardContent component={Stack} direction="row" spacing={2} alignItems="center">
                     <TextField
@@ -106,7 +104,6 @@ export default function SolicitudesView({ initialClienteId }) {
             </Card>
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
-                {/* FORMULARIO DE NUEVA SOLICITUD */}
                 <Card sx={{ flex: 1, p: 2, boxShadow: 3, height: 'fit-content' }}>
                     <CardContent>
                         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Nueva Solicitud</Typography>
@@ -141,7 +138,6 @@ export default function SolicitudesView({ initialClienteId }) {
                     </CardContent>
                 </Card>
 
-                {/* TABLA DE SOLICITUDES */}
                 <TableContainer component={Paper} sx={{ flex: 2, boxShadow: 3 }}>
                     <Table>
                         <TableHead>
@@ -193,7 +189,6 @@ export default function SolicitudesView({ initialClienteId }) {
                 </TableContainer>
             </Stack>
 
-            {/* MODAL / DIALOGO DE DECISION ADMINISTRATIVA */}
             <Dialog open={openModal} onClose={() => setOpenModal(false)} fullWidth maxWidth="xs">
                 <DialogTitle sx={{ fontWeight: 'bold', color: '#0a2540' }}>Evaluación de Solicitud #{selectedSolicitud?.id}</DialogTitle>
                 <DialogContent component={Stack} spacing={3} sx={{ mt: 1 }}>
