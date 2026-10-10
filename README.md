@@ -66,7 +66,7 @@ PruebaAnalistaProgramadorCHN/
 ### Pasos para Desplegar el Sistema
 1. Clonar este repositorio en su máquina local:
    ```bash
-   git clone https://github.com
+   git clone https://github.com/checha9i/PruebaAnalistaProgramadorCHN.git
    ```
 2. Navegar a la carpeta raíz del proyecto:
    ```bash
