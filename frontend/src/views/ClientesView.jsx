@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, Button, TextField, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, Paper, IconButton, Stack, Card, CardContent,
-    Snackbar, Alert, CircularProgress
+    Snackbar, Alert, CircularProgress, InputAdornment
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EditIcon from '@mui/icons-material/Edit';
+import SearchIcon from '@mui/icons-material/Search';
 import { chnApi } from '../api/chnApi';
 
 export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarjetas }) {
@@ -17,14 +18,15 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
         fechaNacimiento: '', direccion: '', correoElectronico: '', telefono: ''
     });
 
-    // Estados para el control del Modo Edición
+    // NUEVO ESTADO: Guarda el texto que el analista escribe para filtrar
+    const [busqueda, setBusqueda] = useState('');
     const [editandoId, setEditandoId] = useState(null);
     const [guardando, setGuardando] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const cargarClientes = () => {
         chnApi.getClientes()
-            .then(data => setClientes(data || []))
+            .then(data => setClientes(Array.isArray(data) ? data : []))
             .catch(err => {
                 console.error("Error cargando clientes", err);
                 setClientes([]);
@@ -44,7 +46,6 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
         setSnackbar({ open: true, message, severity });
     };
 
-    // Carga los datos del cliente en el formulario de la izquierda
     const handleActivarEdicion = (cliente) => {
         setEditandoId(cliente.id);
         setForm({
@@ -67,7 +68,6 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
     const handleSubmit = (e) => {
         e.preventDefault();
         setGuardando(true);
-
 
         const clienteData = {
             nombre: form.nombre.trim(),
@@ -94,12 +94,11 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                 cargarClientes();
             })
             .catch(async (err) => {
-                console.error("Error completo atrapado en la operación:", err);
-                mostrarAlerta("Error al procesar la solicitud. Verifique que los campos obligatorios sean válidos o que el CUI no esté duplicado.", "error");
+                console.error("Error en operación:", err);
+                mostrarAlerta("Error al procesar la solicitud. Verifique que los campos sean válidos o que el CUI no esté duplicado.", "error");
             })
             .finally(() => setGuardando(false));
     };
-
 
     const handleEliminar = (id) => {
         if (window.confirm("¿Está seguro de eliminar este cliente? Se borrarán sus solicitudes y tarjetas automáticamente (ON DELETE CASCADE).")) {
@@ -112,6 +111,16 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                 .catch(() => mostrarAlerta("No se pudo eliminar el cliente seleccionado.", "error"));
         }
     };
+
+    // 🔍 LÓGICA DE FILTRADO REACTIVO: Filtra en memoria en tiempo real por Nombres, Apellidos o CUI
+    const clientesFiltrados = clientes.filter(cliente => {
+        const termino = busqueda.toLowerCase().trim();
+        return (
+            cliente.cuiIdentificacion.toLowerCase().includes(termino) ||
+            cliente.nombre.toLowerCase().includes(termino) ||
+            cliente.apellido.toLowerCase().includes(termino)
+        );
+    });
     return (
         <Box>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#0a2540' }}>
@@ -156,54 +165,78 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                     </CardContent>
                 </Card>
 
-                {/* TABLA DE REGISTROS CON ACCIÓN DE EDICIÓN AGREGADA */}
-                <TableContainer component={Paper} sx={{ flex: 2, boxShadow: 3, maxHeight: 530 }}>
-                    <Table stickyHeader>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>CUI</TableCell>
-                                <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>Cliente</TableCell>
-                                <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>Contacto</TableCell>
-                                <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold', align: 'center' }}>Acciones</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {clientes.map((row) => (
-                                <TableRow key={row.id} hover selected={editandoId === row.id}>
-                                    <TableCell sx={{ fontWeight: 'medium' }}>{row.cuiIdentificacion}</TableCell>
-                                    <TableCell>{`${row.nombre} ${row.apellido}`}</TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2">{row.correoElectronico}</Typography>
-                                        <Typography variant="caption" color="textSecondary">{row.telefono}</Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Stack direction="row" spacing={0.5}>
-                                            <IconButton color="info" title="Editar Información" onClick={() => handleActivarEdicion(row)}>
-                                                <EditIcon />
-                                            </IconButton>
-                                            <IconButton color="primary" title="Ver Solicitudes" onClick={() => onNavigateToSolicitudes(row.id)}>
-                                                <AssignmentIcon />
-                                            </IconButton>
-                                            <IconButton color="secondary" title="Ver Tarjetas" onClick={() => onNavigateToTarjetas(row.id)}>
-                                                <CreditCardIcon />
-                                            </IconButton>
-                                            <IconButton color="error" title="Eliminar Cliente" onClick={() => handleEliminar(row.id)}>
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Stack>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {clientes.length === 0 && (
+                {/* CONTENEDOR DE LA TABLA Y EL NUEVO BUSCADOR */}
+                <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+                    {/* 🔍 BARRA DE BÚSQUEDA DINÁMICA CON ÍCONO */}
+                    <TextField
+                        fullWidth
+                        size="small"
+                        variant="outlined"
+                        placeholder="Buscar por CUI, nombres o apellidos del cliente..."
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon color="action" />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{ backgroundColor: '#ffffff', borderRadius: 1, boxShadow: 1 }}
+                    />
+
+                    <TableContainer component={Paper} sx={{ boxShadow: 3, maxHeight: 470 }}>
+                        <Table stickyHeader>
+                            <TableHead>
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                                        No se registran clientes en el sistema.
-                                    </TableCell>
+                                    <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>CUI</TableCell>
+                                    <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>Cliente</TableCell>
+                                    <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold' }}>Contacto</TableCell>
+                                    <TableCell sx={{ backgroundColor: '#0a2540', color: 'white', fontWeight: 'bold', align: 'center' }}>Acciones</TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                            </TableHead>
+                            <TableBody>
+                                {/* Iterar sobre la lista filtrada de forma reactiva */}
+                                {clientesFiltrados.map((row) => (
+                                    <TableRow key={row.id} hover selected={editandoId === row.id}>
+                                        <TableCell sx={{ fontWeight: 'medium' }}>{row.cuiIdentificacion}</TableCell>
+                                        <TableCell>{`${row.nombre} ${row.apellido}`}</TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">{row.correoElectronico}</Typography>
+                                            <Typography variant="caption" color="textSecondary">{row.telefono}</Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Stack direction="row" spacing={0.5}>
+                                                <IconButton color="info" title="Editar Información" onClick={() => handleActivarEdicion(row)}>
+                                                    <EditIcon />
+                                                </IconButton>
+                                                <IconButton color="primary" title="Ver Solicitudes" onClick={() => onNavigateToSolicitudes(row.id)}>
+                                                    <AssignmentIcon />
+                                                </IconButton>
+                                                <IconButton color="secondary" title="Ver Tarjetas" onClick={() => onNavigateToTarjetas(row.id)}>
+                                                    <CreditCardIcon />
+                                                </IconButton>
+                                                <IconButton color="error" title="Eliminar Cliente" onClick={() => handleEliminar(row.id)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Stack>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {clientesFiltrados.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                                            {clientes.length === 0
+                                                ? "No se registran clientes en el sistema."
+                                                : "No se encontraron clientes que coincidan con la búsqueda."}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
             </Stack>
 
             <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
