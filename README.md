@@ -142,4 +142,4 @@ erDiagram
 ```
 ## 👨‍💻 Autor
 * **Nombre:** César Javier Solares Orozco
-* **GitHub:** [@checha9i](https://github.com)
+* **GitHub:** [@checha9i](https://github.com/checha9i)
