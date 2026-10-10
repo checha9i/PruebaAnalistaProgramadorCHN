@@ -34,7 +34,6 @@ export default function SolicitudesView({ initialClienteId }) {
         }
         setBuscando(true);
 
-        // Mitigación: Limpiar estados previos antes de la nueva consulta
         setClienteInfo(null);
         setSolicitudes([]);
 
