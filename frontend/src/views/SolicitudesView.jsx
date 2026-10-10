@@ -72,10 +72,10 @@ export default function SolicitudesView({ initialClienteId }) {
             estado: 'PENDIENTE'
         };
 
-
         chnApi.crearSolicitud(nuevaSolicitud)
             .then(() => {
                 mostrarAlerta("¡Solicitud radicada exitosamente!", "success");
+                // Refrescar el listado de inmediato usando el ID del cliente actual
                 chnApi.getSolicitudes(clienteInfo.id).then(data => setSolicitudes(data || []));
                 setForm({ tipoTarjeta: 'CLASICA', ingresoMensual: '' });
             })

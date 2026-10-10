@@ -1,36 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, Typography, Button, TextField, Table, TableBody, TableCell, 
+import {
+  Box, Typography, Button, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, Stack, Card, CardContent,
-  Grid, Dialog, DialogTitle, DialogContent, DialogActions
+  Grid, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, CircularProgress, Divider
 } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { chnApi } from '../api/chnApi';
 
 export default function TarjetasView({ initialClienteId }) {
   const [clienteId, setClienteId] = useState(initialClienteId || '');
+  const [clienteInfo, setClienteInfo] = useState(null); // Estado para los datos del cliente
   const [tarjetas, setTarjetas] = useState([]);
   const [selectedTarjeta, setSelectedTarjeta] = useState(null);
   const [movimientos, setMovimientos] = useState({ consumos: [], pagos: [] });
-  
+
   const [openModal, setOpenModal] = useState(false);
-  const [modalType, setModalType] = useState('CONSUMO'); // CONSUMO o PAGO
+  const [modalType, setModalType] = useState('CONSUMO');
   const [txForm, setTxForm] = useState({ monto: '', descripcion: '' });
 
+  const [buscando, setBuscando] = useState(false);
+  const [procesando, setProcesando] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const mostrarAlerta = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
   const cargarTarjetas = () => {
-    if (!clienteId) return;
-    chnApi.getTarjetas(clienteId)
+    if (!clienteId) {
+      mostrarAlerta("Por favor, ingrese un ID de cliente válido.", "warning");
+      return;
+    }
+    setBuscando(true);
+    setClienteInfo(null);
+    setTarjetas([]);
+    setSelectedTarjeta(null);
+    setMovimientos({ consumos: [], pagos: [] });
+
+    // 1. Consultar información del cliente primero para la tarjeta superior
+    chnApi.getCliente(clienteId)
+      .then(cliente => {
+        setClienteInfo(cliente);
+        // 2. Si existe, consultar sus plásticos
+        return chnApi.getTarjetas(clienteId);
+      })
       .then(data => {
-        setTarjetas(data);
-        if (data && data.length > 0) {
-          handleSeleccionarTarjeta(data[0]);
-        } else {
-          setSelectedTarjeta(null);
-          setMovimientos({ consumos: [], pagos: [] });
+        const listaTarjetas = data || [];
+        setTarjetas(listaTarjetas);
+        if (listaTarjetas.length > 0) {
+          handleSeleccionarTarjeta(listaTarjetas[0]);
         }
       })
-      .catch(err => console.error("Error cargando tarjetas", err));
+      .catch(err => {
+        console.error("Error consultando tarjetas:", err);
+        mostrarAlerta("El ID de cliente ingresado no existe en el sistema.", "error");
+      })
+      .finally(() => setBuscando(false));
   };
 
   const handleSeleccionarTarjeta = (tarjeta) => {
@@ -40,11 +67,13 @@ export default function TarjetasView({ initialClienteId }) {
       chnApi.verPagos(tarjeta.id)
     ]).then(([consumos, pagos]) => {
       setMovimientos({ consumos: consumos || [], pagos: pagos || [] });
-    }).catch(err => console.error("Error cargando movimientos", err));
+    }).catch(() => mostrarAlerta("Error al cargar extracto de movimientos.", "error"));
   };
 
   useEffect(() => {
-    if (initialClienteId) cargarTarjetas();
+    if (initialClienteId) {
+      cargarTarjetas();
+    }
   }, [initialClienteId]);
 
   const handleAbrirModal = (type) => {
@@ -55,67 +84,103 @@ export default function TarjetasView({ initialClienteId }) {
 
   const handleEjecutarTransaccion = () => {
     if (!txForm.monto || !txForm.descripcion.trim()) {
-      alert("Todos los campos son obligatorios.");
+      mostrarAlerta("Todos los campos son requeridos.", "warning");
       return;
     }
+    setProcesando(true);
 
     const payload = {
       monto: parseFloat(txForm.monto),
       descripcion: txForm.descripcion
     };
 
-    const peticion = modalType === 'CONSUMO' 
+    const peticion = modalType === 'CONSUMO'
       ? chnApi.registrarConsumo(selectedTarjeta.id, payload)
       : chnApi.registrarPago(selectedTarjeta.id, payload);
 
     peticion
       .then(() => {
+        mostrarAlerta(`¡Transacción de ${modalType.toLowerCase()} procesada con éxito!`, "success");
         setOpenModal(false);
         chnApi.getTarjetas(clienteId).then(data => {
-          setTarjetas(data);
-          const actualizada = data.find(t => t.id === selectedTarjeta.id);
-          if (actualizada) {
-            handleSeleccionarTarjeta(actualizada);
-          }
+          const listaActualizada = data || [];
+          setTarjetas(listaActualizada);
+          const actualizada = listaActualizada.find(t => t.id === selectedTarjeta.id);
+          if (actualizada) handleSeleccionarTarjeta(actualizada);
         });
       })
       .catch(() => {
-        alert("Transacción declinada: El consumo supera el límite de crédito disponible otorgado o el monto es inválido.");
-      });
+        mostrarAlerta("ERROR: Transacción Declinada. ¡Monto excede el límite de crédito disponible!", "error");
+      })
+      .finally(() => setProcesando(false));
   };
-
   return (
     <Box>
       <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#0a2540' }}>
         Estados de Cuenta & Transacciones
       </Typography>
 
+      {/* BARRA DE FILTRO DE BUSQUEDA */}
       <Card sx={{ mb: 4, p: 1, boxShadow: 2 }}>
         <CardContent component={Stack} direction="row" spacing={2} alignItems="center">
-          <TextField 
-            label="ID del Cliente Bancario" 
-            value={clienteId} 
-            onChange={(e) => setClienteId(e.target.value)} 
-            size="small" 
+          <TextField
+            label="ID del Cliente Bancario"
+            value={clienteId}
+            onChange={(e) => setClienteId(e.target.value)}
+            size="small"
             type="number"
           />
-          <Button variant="contained" onClick={cargarTarjetas} sx={{ backgroundColor: '#0a2540' }}>
-            Consultar Tarjetas
+          <Button
+            variant="contained"
+            onClick={cargarTarjetas}
+            disabled={buscando}
+            sx={{ backgroundColor: '#0a2540', minWidth: '140px' }}
+          >
+            {buscando ? <CircularProgress size={20} sx={{ color: 'white' }} /> : "Consultar Cuentas"}
           </Button>
         </CardContent>
       </Card>
 
+      {/* NUEVO MONITOR SUPERIOR: TARJETA INFORMATIVA DEL CLIENTE */}
+      {clienteInfo && (
+        <Card sx={{ mb: 4, borderLeft: '6px solid #0a2540', backgroundColor: '#f8fafc', boxShadow: 2 }}>
+          <CardContent component={Stack} direction="row" spacing={3} alignItems="center">
+            <AccountCircleIcon sx={{ fontSize: 45, color: '#0a2540' }} />
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="caption" color="textSecondary" display="block">CUENTAHABIENTE VINCULADO</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0a2540' }}>
+                {clienteInfo.nombre} {clienteInfo.apellido} (ID Interno: #{clienteInfo.id})
+              </Typography>
+            </Box>
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <Typography variant="caption" color="textSecondary" display="block">DOCUMENTO (CUI)</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                {clienteInfo.cuiIdentificacion}
+              </Typography>
+            </Box>
+            <Divider orientation="vertical" flexItem />
+            <Box>
+              <Typography variant="caption" color="textSecondary" display="block">TELÉFONO DE CONTACTO</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                {clienteInfo.telefono}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* SECCIÓN PRINCIPAL DE TARJETAS Y OPERACIONES */}
       {tarjetas.length > 0 && selectedTarjeta ? (
         <Grid container spacing={4}>
-          {/* PANEL DE SELECCIÓN DE PLÁSTICOS */}
           <Grid item xs={12} md={4}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Tarjetas Emitidas</Typography>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#0a2540' }}>Tarjetas Emitidas</Typography>
             <Stack spacing={2}>
               {tarjetas.map((t) => (
-                <Card 
-                  key={t.id} 
+                <Card
+                  key={t.id}
                   onClick={() => handleSeleccionarTarjeta(t)}
-                  sx={{ 
+                  sx={{
                     p: 1, cursor: 'pointer', boxShadow: 2,
                     borderLeft: selectedTarjeta.id === t.id ? '6px solid #ffc107' : 'none',
                     backgroundColor: selectedTarjeta.id === t.id ? '#fafafa' : '#fff'
@@ -133,7 +198,6 @@ export default function TarjetasView({ initialClienteId }) {
             </Stack>
           </Grid>
 
-          {/* MONITOR DE MOVIMIENTOS Y ACCIONES */}
           <Grid item xs={12} md={8}>
             <Card sx={{ p: 2, mb: 4, backgroundColor: '#0a2540', color: 'white' }}>
               <CardContent>
@@ -149,18 +213,13 @@ export default function TarjetasView({ initialClienteId }) {
                   </Grid>
                 </Grid>
                 <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-                  <Button variant="contained" color="warning" startIcon={<ArrowUpwardIcon />} onClick={() => handleAbrirModal('CONSUMO')}>
-                    Registrar Consumo
-                  </Button>
-                  <Button variant="contained" color="success" startIcon={<ArrowDownwardIcon />} onClick={() => handleAbrirModal('PAGO')}>
-                    Registrar Pago
-                  </Button>
+                  <Button variant="contained" color="warning" startIcon={<ArrowUpwardIcon />} onClick={() => handleAbrirModal('CONSUMO')}>Registrar Consumo</Button>
+                  <Button variant="contained" color="success" startIcon={<ArrowDownwardIcon />} onClick={() => handleAbrirModal('PAGO')}>Registrar Pago</Button>
                 </Stack>
               </CardContent>
             </Card>
 
-            {/* TABLA COMPUESTA DE MOVIMIENTOS */}
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Historial de Operaciones</Typography>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#0a2540' }}>Historial de Operaciones</Typography>
             <TableContainer component={Paper} sx={{ boxShadow: 2 }}>
               <Table size="small">
                 <TableHead>
@@ -196,48 +255,35 @@ export default function TarjetasView({ initialClienteId }) {
           </Grid>
         </Grid>
       ) : (
-        clienteId && (
-          <Box sx={{ p: 4, textAlign: 'center', backgroundColor: '#fff', borderRadius: 2, boxShadow: 1, mt: 2 }}>
-            No se registran cuentas de crédito activas para el ID proporcionado o presione consultar.
+        clienteId && !buscando && (
+          <Box sx={{ p: 4, textAlign: 'center', backgroundColor: '#fff', borderRadius: 2, mt: 2, boxShadow: 1 }}>
+            {clienteInfo
+              ? `El cliente ${clienteInfo.nombre} no posee ninguna tarjeta de crédito activa emitida.`
+              : "Consulte un ID de cliente bancario en la barra superior para monitorear sus estados de cuenta."}
           </Box>
         )
       )}
 
-      {/* MODAL TRANSACCIONAL GENERAL */}
-      <Dialog open={openModal} onClose={() => setOpenModal(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 'bold', color: '#0a2540' }}>
-          Registrar {modalType === 'CONSUMO' ? 'Nuevo Consumo / Cargo' : 'Manual de Pago / Abono'}
-        </DialogTitle>
+      {/* DIALOG DE ACCIÓN TRANSACCIONAL */}
+      <Dialog open={openModal} onClose={() => !procesando && setOpenModal(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#0a2540' }}>Registrar {modalType === 'CONSUMO' ? 'Nuevo Consumo' : 'Manual de Pago'}</DialogTitle>
         <DialogContent component={Stack} spacing={3} sx={{ mt: 1 }}>
-          <TextField 
-            label="Monto de la Operación (Q)" 
-            value={txForm.monto} 
-            onChange={(e) => setTxForm({ ...txForm, monto: e.target.value })}
-            fullWidth 
-            size="small" 
-            type="number"
-            required
-          />
-          <TextField 
-            label="Descripción o Concepto" 
-            value={txForm.descripcion} 
-            onChange={(e) => setTxForm({ ...txForm, descripcion: e.target.value })}
-            fullWidth
-            size="small"
-            required
-          />
+          <TextField label="Monto de la Operación (Q)" value={txForm.monto} onChange={(e) => setTxForm({ ...txForm, monto: e.target.value })} fullWidth size="small" type="number" required />
+          <TextField label="Descripción o Concepto" value={txForm.descripcion} onChange={(e) => setTxForm({ ...txForm, descripcion: e.target.value })} fullWidth size="small" required />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setOpenModal(false)} color="inherit">Cancelar</Button>
-          <Button
-            onClick={handleEjecutarTransaccion}
-            variant="contained"
-            color={modalType === 'CONSUMO' ? 'warning' : 'success'}
-          >
-            Procesar Transacción
+          <Button onClick={() => setOpenModal(false)} disabled={procesando} color="inherit">Cancelar</Button>
+          <Button onClick={handleEjecutarTransaccion} variant="contained" disabled={procesando} color={modalType === 'CONSUMO' ? 'warning' : 'success'}>
+            {procesando ? <CircularProgress size={20} sx={{ color: 'white' }} /> : "Procesar"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

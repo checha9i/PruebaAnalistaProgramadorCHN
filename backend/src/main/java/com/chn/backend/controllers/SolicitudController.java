@@ -11,6 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/solicitudes")
+@CrossOrigin(origins = "http://localhost:5173") 
 public class SolicitudController {
 
     private final SolicitudService solicitudService;
@@ -19,6 +20,12 @@ public class SolicitudController {
     public SolicitudController(SolicitudService solicitudService, SolicitudRepository solicitudRepository) {
         this.solicitudService = solicitudService;
         this.solicitudRepository = solicitudRepository;
+    }
+
+    @PostMapping
+    public ResponseEntity<Solicitud> crearSolicitud(@RequestBody Solicitud solicitud) {
+        // Guarda la solicitud usando el repositorio o servicio directamente
+        return ResponseEntity.ok(solicitudRepository.save(solicitud));
     }
 
     // Ver solicitudes por cliente
@@ -36,7 +43,6 @@ public class SolicitudController {
         String estado = (String) payload.get("estado");
         String motivo = (String) payload.get("motivo");
         
-        // Mapeo seguro del monto aprobado
         BigDecimal monto = BigDecimal.ZERO;
         if (payload.get("montoAprobado") != null) {
             monto = new BigDecimal(payload.get("montoAprobado").toString());
