@@ -6,6 +6,10 @@ export const chnApi = {
         if (!res.ok) throw res;
         return res.json();
     }),
+    getCliente: (id) => fetch(`${BASE_URL}/clientes/${id}`).then(res => {
+        if (!res.ok) throw res;
+        return res.json();
+    }),
     crearCliente: (cliente) => fetch(`${BASE_URL}/clientes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,5 +67,14 @@ export const chnApi = {
     verPagos: (tarjetaId) => fetch(`${BASE_URL}/tarjetas/${tarjetaId}/movimientos/pagos`).then(res => {
         if (!res.ok) throw res;
         return res.json();
-    })
+    }),
+    crearSolicitud: (solicitud) => fetch(`${BASE_URL}/solicitudes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(solicitud)
+    }).then(res => {
+        if (!res.ok) throw res;
+        return res.json();
+    }),
+
 };

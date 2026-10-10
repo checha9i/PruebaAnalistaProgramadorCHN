@@ -7,6 +7,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import EditIcon from '@mui/icons-material/Edit';
 import { chnApi } from '../api/chnApi';
 
 export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarjetas }) {
@@ -16,23 +17,21 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
         fechaNacimiento: '', direccion: '', correoElectronico: '', telefono: ''
     });
 
-    // Estados para el manejo de Feedback y Mensajes al Usuario
+    // Estados para el control del Modo Edición
+    const [editandoId, setEditandoId] = useState(null);
     const [guardando, setGuardando] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-    // Función corregida para listar clientes automáticamente
     const cargarClientes = () => {
         chnApi.getClientes()
-            .then(data => {
-                setClientes(data || []);
-            })
+            .then(data => setClientes(data || []))
             .catch(err => {
                 console.error("Error cargando clientes", err);
+                setClientes([]);
                 mostrarAlerta("Error al cargar el listado de clientes bancarios", "error");
             });
     };
 
-    // useEffect Corregido: Se ejecuta de forma segura al montar la pantalla
     useEffect(() => {
         cargarClientes();
     }, []);
@@ -45,33 +44,52 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
         setSnackbar({ open: true, message, severity });
     };
 
+    // Carga los datos del cliente en el formulario de la izquierda
+    const handleActivarEdicion = (cliente) => {
+        setEditandoId(cliente.id);
+        setForm({
+            nombre: cliente.nombre,
+            apellido: cliente.apellido,
+            cuiIdentificacion: cliente.cuiIdentificacion,
+            fechaNacimiento: cliente.fechaNacimiento,
+            direccion: cliente.direccion,
+            correoElectronico: cliente.correoElectronico,
+            telefono: cliente.telefono
+        });
+        mostrarAlerta(`Modo edición activado para el cliente ID: #${cliente.id}`, "info");
+    };
+
+    const handleCancelarEdicion = () => {
+        setEditandoId(null);
+        setForm({ nombre: '', apellido: '', cuiIdentificacion: '', fechaNacimiento: '', direccion: '', correoElectronico: '', telefono: '' });
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        setGuardando(true); // Muestra el spinner de carga en el botón
+        setGuardando(true);
 
-        const clienteData = {
-            ...form,
-            direccion: form.direccion
-        };
+        const clienteData = { ...form, direccion: form.direccion };
 
-        chnApi.crearCliente(clienteData)
+
+        const peticion = editandoId
+            ? fetch(`http://localhost:8080/api/clientes/${editandoId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(clienteData)
+            }).then(res => { if (!res.ok) throw res; return res.json(); })
+            : chnApi.crearCliente(clienteData);
+
+        peticion
             .then(() => {
-                mostrarAlerta("¡Cliente guardado exitosamente en el sistema CHN!", "success");
+                mostrarAlerta(editandoId ? "¡Cliente actualizado correctamente!" : "¡Cliente guardado exitosamente!", "success");
+                handleCancelarEdicion();
                 cargarClientes();
-                setForm({ nombre: '', apellido: '', cuiIdentificacion: '', fechaNacimiento: '', direccion: '', correoElectronico: '', telefono: '' }); // Limpiar campos
             })
             .catch(async (err) => {
-                console.error("Error atrapado en inserción:", err);
-                try {
-                    const errData = await err.json();
-                    mostrarAlerta(errData.message || "El número de identificación (CUI) ya existe.", "error");
-                } catch (e) {
-                    mostrarAlerta("Error de comunicación: El CUI ya existe o faltan campos obligatorios.", "error");
-                }
+                console.error("Error en operación:", err);
+                mostrarAlerta("Error al procesar la solicitud. Verifique que el CUI no esté duplicado.", "error");
             })
-            .finally(() => {
-                setGuardando(false); // Apaga el spinner de carga del botón
-            });
+            .finally(() => setGuardando(false));
     };
 
     const handleEliminar = (id) => {
@@ -79,12 +97,12 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
             chnApi.eliminarCliente(id)
                 .then(() => {
                     mostrarAlerta("Cliente eliminado correctamente de la base de datos.", "info");
-                    cargarClientes(); // Recargar la tabla tras el borrado
+                    if (editandoId === id) handleCancelarEdicion();
+                    cargarClientes();
                 })
                 .catch(() => mostrarAlerta("No se pudo eliminar el cliente seleccionado.", "error"));
         }
     };
-
     return (
         <Box>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#0a2540' }}>
@@ -92,10 +110,12 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
             </Typography>
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
-                {/* FORMULARIO DE REGISTRO */}
+                {/* FORMULARIO DE REGISTRO / EDICIÓN */}
                 <Card sx={{ flex: 1, p: 2, boxShadow: 3, height: 'fit-content' }}>
                     <CardContent>
-                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#0a2540' }}>Registrar Nuevo Cliente</Typography>
+                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#0a2540' }}>
+                            {editandoId ? `Modificar Cliente #${editandoId}` : "Registrar Nuevo Cliente"}
+                        </Typography>
                         <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <TextField label="CUI / Identificación (Único)" name="cuiIdentificacion" value={form.cuiIdentificacion} onChange={handleChange} required fullWidth size="small" />
                             <Stack direction="row" spacing={2}>
@@ -107,20 +127,27 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                             <TextField label="Correo Electrónico" type="email" name="correoElectronico" value={form.correoElectronico} onChange={handleChange} required fullWidth size="small" />
                             <TextField label="Teléfono de Contacto" name="telefono" value={form.telefono} onChange={handleChange} required fullWidth size="small" />
 
-                            <Button
-                                type="submit"
-                                variant="contained"
-                                disabled={guardando}
-                                sx={{ backgroundColor: '#0a2540', '&:hover': { backgroundColor: '#061729' }, minHeight: '40px' }}
-                                fullWidth
-                            >
-                                {guardando ? <CircularProgress size={24} sx={{ color: 'white' }} /> : "Guardar Cliente"}
-                            </Button>
+                            <Stack direction="row" spacing={2}>
+                                {editandoId && (
+                                    <Button variant="outlined" color="inherit" onClick={handleCancelarEdicion} fullWidth>
+                                        Cancelar
+                                    </Button>
+                                )}
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    disabled={guardando}
+                                    sx={{ backgroundColor: editandoId ? '#ffc107' : '#0a2540', color: editandoId ? '#000' : '#fff', '&:hover': { backgroundColor: editandoId ? '#e0a800' : '#061729' }, minHeight: '40px' }}
+                                    fullWidth
+                                >
+                                    {guardando ? <CircularProgress size={24} sx={{ color: 'inherit' }} /> : editandoId ? "Actualizar" : "Guardar Cliente"}
+                                </Button>
+                            </Stack>
                         </Box>
                     </CardContent>
                 </Card>
 
-                {/* TABLA DE REGISTROS CON CARGA REACTIVA */}
+                {/* TABLA DE REGISTROS CON ACCIÓN DE EDICIÓN AGREGADA */}
                 <TableContainer component={Paper} sx={{ flex: 2, boxShadow: 3, maxHeight: 530 }}>
                     <Table stickyHeader>
                         <TableHead>
@@ -133,7 +160,7 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                         </TableHead>
                         <TableBody>
                             {clientes.map((row) => (
-                                <TableRow key={row.id} hover>
+                                <TableRow key={row.id} hover selected={editandoId === row.id}>
                                     <TableCell sx={{ fontWeight: 'medium' }}>{row.cuiIdentificacion}</TableCell>
                                     <TableCell>{`${row.nombre} ${row.apellido}`}</TableCell>
                                     <TableCell>
@@ -142,6 +169,9 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                                     </TableCell>
                                     <TableCell>
                                         <Stack direction="row" spacing={0.5}>
+                                            <IconButton color="info" title="Editar Información" onClick={() => handleActivarEdicion(row)}>
+                                                <EditIcon />
+                                            </IconButton>
                                             <IconButton color="primary" title="Ver Solicitudes" onClick={() => onNavigateToSolicitudes(row.id)}>
                                                 <AssignmentIcon />
                                             </IconButton>
@@ -158,7 +188,7 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                             {clientes.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                                        No se registran clientes en el sistema o la base de datos está vacía.
+                                        No se registran clientes en el sistema.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -167,19 +197,8 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                 </TableContainer>
             </Stack>
 
-            {/* NOTIFICACIONES TOAST INSTITUCIONALES */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={5000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            >
-                <Alert
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
-                    severity={snackbar.severity}
-                    variant="filled"
-                    sx={{ width: '100%', fontWeight: 'medium' }}
-                >
+            <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
                     {snackbar.message}
                 </Alert>
             </Snackbar>
