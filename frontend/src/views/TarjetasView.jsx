@@ -176,26 +176,62 @@ export default function TarjetasView({ initialClienteId }) {
           <Grid item xs={12} md={4}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#0a2540' }}>Tarjetas Emitidas</Typography>
             <Stack spacing={2}>
-              {tarjetas.map((t) => (
-                <Card
-                  key={t.id}
-                  onClick={() => handleSeleccionarTarjeta(t)}
-                  sx={{
-                    p: 1, cursor: 'pointer', boxShadow: 2,
-                    borderLeft: selectedTarjeta.id === t.id ? '6px solid #ffc107' : 'none',
-                    backgroundColor: selectedTarjeta.id === t.id ? '#fafafa' : '#fff'
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      **** **** **** {t.numeroTarjeta.slice(-4)}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary" display="block">TIPO: {t.tipoTarjeta}</Typography>
-                    <Typography variant="body2" sx={{ mt: 1 }}>Deuda Actual: <b>Q {t.saldoActual.toFixed(2)}</b></Typography>
-                  </CardContent>
-                </Card>
-              ))}
+              {tarjetas.map((t) => {
+                // Definición del color de fondo y texto institucional según el nivel de tarjeta
+                let bgCardColor = '#f4f6f8'; // Fondo por defecto
+                let textCardColor = '#000000';
+
+                if (t.tipoTarjeta === 'CLASICA') {
+                  bgCardColor = '#1976d2'; // Azul Institucional
+                  textCardColor = '#ffffff';
+                } else if (t.tipoTarjeta === 'ORO') {
+                  bgCardColor = '#ffd700'; // Oro / Amarillo Dorado
+                  textCardColor = '#000000';
+                } else if (t.tipoTarjeta === 'PLATINO') {
+                  bgCardColor = '#e0e0e0'; // Gris / Platino Elegante
+                  textCardColor = '#000000';
+                }
+
+                const isSelected = selectedTarjeta.id === t.id;
+
+                return (
+                  <Card
+                    key={t.id}
+                    onClick={() => handleSeleccionarTarjeta(t)}
+                    sx={{
+                      p: 1,
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? 6 : 2,
+                      backgroundColor: bgCardColor,
+                      color: textCardColor,
+                      transition: 'all 0.3s ease',
+                      transform: isSelected ? 'scale(1.02)' : 'none',
+                      borderLeft: isSelected ? '8px solid #0a2540' : 'none'
+                    }}
+                  >
+                    <CardContent>
+                      {/* Número de tarjeta institucional */}
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                        **** **** **** {t.numeroTarjeta.slice(-4)}
+                      </Typography>
+
+                      {/* Nombre del Tarjetahabiente */}
+                      <Typography variant="body2" sx={{ fontWeight: 'bold', textTransform: 'uppercase', mt: 0.5, letterSpacing: '0.5px', opacity: 0.9 }}>
+                        {clienteInfo?.nombre} {clienteInfo?.apellido}
+                      </Typography>
+
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5, fontWeight: 'bold', opacity: 0.8 }}>
+                        CATEGORÍA: {t.tipoTarjeta}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        Deuda Actual: <b>Q {t.saldoActual.toFixed(2)}</b>
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Stack>
+
           </Grid>
 
           <Grid item xs={12} md={8}>
@@ -231,25 +267,44 @@ export default function TarjetasView({ initialClienteId }) {
                 </TableHead>
                 <TableBody>
                   {movimientos.consumos.map((c) => (
-                    <TableRow key={`c-${c.id}`}>
+                    <TableRow key={`c-${c.id}`} hover>
                       <TableCell><Typography variant="caption" sx={{ color: '#d32f2f', fontWeight: 'bold' }}>CONSUMO</Typography></TableCell>
-                      <TableCell>{c.descripcion}</TableCell>
-                      <TableCell sx={{ color: '#d32f2f' }}>+ Q {c.monto.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{c.descripcion}</Typography>
+                        {c.fechaConsumo && (
+                          <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5 }}>
+                            Fecha: {new Date(c.fechaConsumo).toLocaleDateString()} {new Date(c.fechaConsumo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ color: '#d32f2f', fontWeight: 'medium' }}>+ Q {c.monto.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
+
                   {movimientos.pagos.map((p) => (
-                    <TableRow key={`p-${p.id}`}>
+                    <TableRow key={`p-${p.id}`} hover>
                       <TableCell><Typography variant="caption" sx={{ color: '#2e7d32', fontWeight: 'bold' }}>PAGO</Typography></TableCell>
-                      <TableCell>{p.descripcion}</TableCell>
-                      <TableCell sx={{ color: '#2e7d32' }}>- Q {p.monto.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{p.descripcion}</Typography>
+                        {p.fechaPago && (
+                          <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5 }}>
+                            Fecha: {new Date(p.fechaPago).toLocaleDateString()} {new Date(p.fechaPago).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ color: '#2e7d32', fontWeight: 'medium' }}>- Q {p.monto.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
+
                   {movimientos.consumos.length === 0 && movimientos.pagos.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={3} align="center" sx={{ py: 2 }}>No se registran movimientos contables para este plástico.</TableCell>
+                      <TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                        No se registran movimientos contables para este plástico.
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
+
               </Table>
             </TableContainer>
           </Grid>

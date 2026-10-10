@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "tarjetas")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Tarjeta {
 
     @Id
@@ -18,6 +19,7 @@ public class Tarjeta {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
+
 
     @Column(name = "tipo_tarjeta", nullable = false, length = 20)
     private String tipoTarjeta;

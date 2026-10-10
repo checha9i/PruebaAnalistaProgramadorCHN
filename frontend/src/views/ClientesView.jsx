@@ -68,8 +68,16 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
         e.preventDefault();
         setGuardando(true);
 
-        const clienteData = { ...form, direccion: form.direccion };
 
+        const clienteData = {
+            nombre: form.nombre.trim(),
+            apellido: form.apellido.trim(),
+            cuiIdentificacion: form.cuiIdentificacion.trim(),
+            fechaNacimiento: form.fechaNacimiento,
+            direccion: form.direccion.trim(),
+            correoElectronico: form.correoElectronico.trim(),
+            telefono: form.telefono.trim()
+        };
 
         const peticion = editandoId
             ? fetch(`http://localhost:8080/api/clientes/${editandoId}`, {
@@ -86,11 +94,12 @@ export default function ClientesView({ onNavigateToSolicitudes, onNavigateToTarj
                 cargarClientes();
             })
             .catch(async (err) => {
-                console.error("Error en operación:", err);
-                mostrarAlerta("Error al procesar la solicitud. Verifique que el CUI no esté duplicado.", "error");
+                console.error("Error completo atrapado en la operación:", err);
+                mostrarAlerta("Error al procesar la solicitud. Verifique que los campos obligatorios sean válidos o que el CUI no esté duplicado.", "error");
             })
             .finally(() => setGuardando(false));
     };
+
 
     const handleEliminar = (id) => {
         if (window.confirm("¿Está seguro de eliminar este cliente? Se borrarán sus solicitudes y tarjetas automáticamente (ON DELETE CASCADE).")) {

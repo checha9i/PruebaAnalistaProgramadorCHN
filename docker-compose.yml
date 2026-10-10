@@ -8,11 +8,17 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "CHNAnalista2026!"
       MSSQL_PID: "Developer"
+      TZ: "America/Guatemala"
     ports:
       - "1433:1433"
     volumes:
-      - sqlserver_data:/var/opt/mssql
-
+      - sqlserver_data:/var/opt/mssql/data
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "</dev/tcp/127.0.0.1/1433" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
   # API Backend (Spring Boot)
   backend:
     build: ./backend
@@ -25,8 +31,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: CHNAnalista2026!
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.SQLServerDialect
+      TZ: "America/Guatemala"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   # Frontend (React)
   frontend:
@@ -38,4 +46,4 @@ services:
       - backend
 
 volumes:
-  sqlserver_data:
+  sqlserver_data: # Define el volumen relacional persistente

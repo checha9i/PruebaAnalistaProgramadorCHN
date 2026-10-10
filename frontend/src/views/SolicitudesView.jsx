@@ -219,9 +219,25 @@ export default function SolicitudesView({ initialClienteId }) {
                         <TableBody>
                             {solicitudes.map((row) => (
                                 <TableRow key={row.id} hover>
+                                    {/* 1. ID */}
                                     <TableCell>{row.id}</TableCell>
-                                    <TableCell>{row.tipoTarjeta}</TableCell>
-                                    <TableCell>Q {row.ingresoMensual.toFixed(2)}</TableCell>
+
+                                    {/* 2. Tarjeta (Con su fecha de ingreso abajo) */}
+                                    <TableCell>
+                                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#0a2540' }}>
+                                            {row.tipoTarjeta}
+                                        </Typography>
+                                        {row.fechaSolicitud && (
+                                            <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5 }}>
+                                                Ingreso: {row.fechaSolicitud}
+                                            </Typography>
+                                        )}
+                                    </TableCell>
+
+                                    {/* 3. Ingreso Mensual Declarado */}
+                                    <TableCell>Q {(row.ingresoMensual || 0).toFixed(2)}</TableCell>
+
+                                    {/* 4. Estado Limpio */}
                                     <TableCell>
                                         <Typography variant="body2" sx={{
                                             fontWeight: 'bold',
@@ -230,6 +246,8 @@ export default function SolicitudesView({ initialClienteId }) {
                                             {row.estado}
                                         </Typography>
                                     </TableCell>
+
+                                    {/* 5. Resolución */}
                                     <TableCell>
                                         {row.estado === 'PENDIENTE' ? (
                                             <Button variant="outlined" size="small" onClick={() => handleAbrirDecision(row)}>
@@ -237,13 +255,23 @@ export default function SolicitudesView({ initialClienteId }) {
                                             </Button>
                                         ) : (
                                             <Box>
-                                                <Typography variant="caption" display="block">Monto: Q{(row.montoAprobado || 0).toFixed(2)}</Typography>
-                                                <Typography variant="caption" color="textSecondary" display="block">Obs: {row.motivoComentario}</Typography>
+                                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                                    Monto: Q {(row.montoAprobado || 0).toFixed(2)}
+                                                </Typography>
+                                                {row.fechaDecision && (
+                                                    <Typography variant="caption" color="primary" display="block" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+                                                        Dictamen: {row.fechaDecision}
+                                                    </Typography>
+                                                )}
+                                                <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+                                                    Obs: {row.motivoComentario}
+                                                </Typography>
                                             </Box>
                                         )}
                                     </TableCell>
                                 </TableRow>
                             ))}
+
                             {solicitudes.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.secondary' }}>

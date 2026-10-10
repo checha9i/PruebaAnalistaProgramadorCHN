@@ -4,11 +4,14 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDate;
 import java.util.List;
 
 @Entity
 @Table(name = "clientes")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cliente {
 
     @Id
@@ -45,30 +48,49 @@ public class Cliente {
     @Column(nullable = false, length = 15)
     private String telefono;
 
-    // Regla: Eliminación en cascada automática de solicitudes y tarjetas
+   
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @com.fasterxml.jackson.annotation.JsonIgnore 
     private List<Solicitud> solicitudes;
 
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
+    @com.fasterxml.jackson.annotation.JsonIgnore 
     private List<Tarjeta> tarjetas;
 
-    // Constructores, Getters y Setters
+    // Constructores
     public Cliente() {}
 
+    // Getters y Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
     public String getCuiIdentificacion() { return cuiIdentificacion; }
     public void setCuiIdentificacion(String cuiIdentificacion) { this.cuiIdentificacion = cuiIdentificacion; }
+
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+
     public String getApellido() { return apellido; }
     public void setApellido(String apellido) { this.apellido = apellido; }
+
     public LocalDate getFechaNacimiento() { return fechaNacimiento; }
     public void setFechaNacimiento(LocalDate fechaNacimiento) { this.fechaNacimiento = fechaNacimiento; }
-    public String getDirection() { return direccion; }
+
+   
+    public String getDireccion() { return direccion; }
     public void setDireccion(String direccion) { this.direccion = direccion; }
+
     public String getCorreoElectronico() { return correoElectronico; }
     public void setCorreoElectronico(String correoElectronico) { this.correoElectronico = correoElectronico; }
+
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public List<Solicitud> getSolicitudes() { return solicitudes; }
+    public void setSolicitudes(List<Solicitud> solicitudes) { this.solicitudes = solicitudes; }
+
+    public List<Tarjeta> getTarjetas() { return tarjetas; }
+    public void setTarjetas(List<Tarjeta> tarjetas) { this.tarjetas = tarjetas; }
 }
